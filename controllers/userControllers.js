@@ -10,7 +10,7 @@ const registerUser = async (req, res, next) => {
       message: "User registration endpoint is not implemented yet.",
     });
   } catch (error) {
-    return next(new HttpError(error, 500));
+    return next(new HttpError(error, 422));
   }
 };
 
@@ -24,7 +24,7 @@ const loginUser = async (req, res, next) => {
       message: "User login endpoint is not implemented yet.",
     });
   } catch (error) {
-    return next(new HttpError(error, 500));
+    return next(new HttpError(error, 401));
   }
 };
 
@@ -38,7 +38,7 @@ const getUser = async (req, res, next) => {
       message: "User profile endpoint is not implemented yet.",
     });
   } catch (error) {
-    return next(new HttpError(error, 500));
+    return next(new HttpError(error, 404));
   }
 };
 
@@ -52,13 +52,13 @@ const getUsers = async (req, res, next) => {
       message: "Users endpoint is not implemented yet.",
     });
   } catch (error) {
-    return next(new HttpError(error, 500));
+    return next(new HttpError(error, 403));
   }
 };
 
 // =================== Update User's Profile ===================
 // @desc    Update owner's profile
-// @route   PUT /api/users/edit
+// @route   PUT /api/users/:id
 // @access  Private
 const editUser = async (req, res, next) => {
   try {
@@ -66,7 +66,7 @@ const editUser = async (req, res, next) => {
       message: "User update endpoint is not implemented yet.",
     });
   } catch (error) {
-    return next(new HttpError(error, 500));
+    return next(new HttpError(error, 422));
   }
 };
 
@@ -80,7 +80,7 @@ const followUnfollowUser = async (req, res, next) => {
       message: "Follow/Unfollow user endpoint is not implemented yet.",
     });
   } catch (error) {
-    return next(new HttpError(error, 500));
+    return next(new HttpError(error, 404));
   }
 };
 
@@ -94,7 +94,7 @@ const changeUserAvatar = async (req, res, next) => {
       message: "Change profile photo endpoint is not implemented yet.",
     });
   } catch (error) {
-    return next(new HttpError(error, 500));
+    return next(new HttpError(error, 422));
   }
 };
 
