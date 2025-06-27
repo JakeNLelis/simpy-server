@@ -1,6 +1,7 @@
 const HttpError = require("../models/errorModel");
 const UserModel = require("../models/userModel");
 const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 
 // =================== Register User ===================
 // @desc    Register a new user
@@ -35,7 +36,7 @@ const registerUser = async (req, res, next) => {
       email: lowerEmail,
       password: hashedPassword,
     });
-    res.json(newUser).status(201);
+    res.status(201).json(newUser);
   } catch (error) {
     return next(new HttpError(error));
   }
@@ -47,9 +48,30 @@ const registerUser = async (req, res, next) => {
 // @access  Public
 const loginUser = async (req, res, next) => {
   try {
-    res.json({
-      message: "User login endpoint is not implemented yet.",
-    });
+    const { email, password } = req.body;
+    if (!email || !password) {
+      return next(new HttpError("Email and password are required.", 422));
+    }
+    const lowerEmail = email.toLowerCase();
+    const user = await UserModel.findOne({ email: lowerEmail });
+    if (!user) {
+      return next(new HttpError("Invalid email.", 404));
+    }
+    const { password: userPassword, ...userInfo } = user._doc;
+    const isPasswordValid = await bcrypt.compare(password, userPassword);
+
+    if (!isPasswordValid) {
+      return next(new HttpError("Invalid password.", 401));
+    }
+
+    const token = jwt.sign(
+      { id: user?._id, email: user?.email },
+      process.env.JWT_SECRET,
+      {
+        expiresIn: "7d",
+      }
+    );
+    res.status(200).json({ token, id: user?._id, ...userInfo });
   } catch (error) {
     return next(new HttpError(error));
   }
