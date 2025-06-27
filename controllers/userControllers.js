@@ -2,6 +2,10 @@ import { HttpError } from "../config/error";
 import UserModel from "../models/userModel";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import { v4 as uuid } from "uuid";
+import fs from "fs";
+import path from "path";
+import cloudinary from "../utils/cloudinary.js";
 
 // =================== Register User ===================
 // @desc    Register a new user
@@ -57,8 +61,7 @@ const loginUser = async (req, res, next) => {
     if (!user) {
       return next(new HttpError("Invalid email.", 404));
     }
-    const { password: userPassword, ...userInfo } = user._doc;
-    const isPasswordValid = await bcrypt.compare(password, userPassword);
+    const isPasswordValid = await bcrypt.compare(password, user?.password);
 
     if (!isPasswordValid) {
       return next(new HttpError("Invalid password.", 401));
@@ -71,7 +74,7 @@ const loginUser = async (req, res, next) => {
         expiresIn: "7d",
       }
     );
-    res.status(200).json({ token, id: user?._id, ...userInfo });
+    res.status(200).json({ token, id: user?._id, name: user?.fullName });
   } catch (error) {
     return next(new HttpError(error));
   }
@@ -83,9 +86,12 @@ const loginUser = async (req, res, next) => {
 // @access  Private
 const getUser = async (req, res, next) => {
   try {
-    res.json({
-      message: "User profile endpoint is not implemented yet.",
-    });
+    const { id } = req.params;
+    const user = await UserModel.findById(id).select("-password -__v");
+    if (!user) {
+      return next(new HttpError("User not found.", 404));
+    }
+    res.status(200).json(user);
   } catch (error) {
     return next(new HttpError(error));
   }
@@ -97,9 +103,8 @@ const getUser = async (req, res, next) => {
 // @access  Private
 const getUsers = async (req, res, next) => {
   try {
-    res.json({
-      message: "Users endpoint is not implemented yet.",
-    });
+    const users = await UserModel.find().select("-password -__v");
+    res.status(200).json(users);
   } catch (error) {
     return next(new HttpError(error));
   }
@@ -111,9 +116,13 @@ const getUsers = async (req, res, next) => {
 // @access  Private
 const editUser = async (req, res, next) => {
   try {
-    res.json({
-      message: "User update endpoint is not implemented yet.",
-    });
+    const { fullName, bio } = req.body;
+    const editUser = await UserModel.findByIdAndUpdate(
+      req.user.id,
+      { fullName, bio },
+      { new: true }
+    ).select("-password -__v");
+    res.status(200).json(editUser);
   } catch (error) {
     return next(new HttpError(error));
   }
@@ -125,6 +134,41 @@ const editUser = async (req, res, next) => {
 // @access  Private
 const followUnfollowUser = async (req, res, next) => {
   try {
+    const userToFollowId = req.params.id;
+    if (req.user.id === userToFollowId) {
+      return next(new HttpError("You cannot follow/unfollow yourself.", 422));
+    }
+    const currentUser = await UserModel.findById(req.user.id);
+    const isFollowing = currentUser.following.includes(userToFollowId);
+    if (!isFollowing) {
+      const updateUser = await UserModel.findByIdAndUpdate(
+        userToFollowId,
+        { $push: { followers: req.user.id } },
+        { new: true }
+      );
+      await UserModel.findByIdAndUpdate(
+        req.user.id,
+        { $push: { following: userToFollowId } },
+        { new: true }
+      );
+      res.status(200).json({
+        message: `You are now following ${updateUser.fullName}.`,
+      });
+    } else {
+      const updateUser = await UserModel.findByIdAndUpdate(
+        userToFollowId,
+        { $pull: { followers: req.user.id } },
+        { new: true }
+      );
+      await UserModel.findByIdAndUpdate(
+        req.user.id,
+        { $pull: { following: userToFollowId } },
+        { new: true }
+      );
+      res.status(200).json({
+        message: `You have unfollowed ${updateUser.fullName}.`,
+      });
+    }
     res.json({
       message: "Follow/Unfollow user endpoint is not implemented yet.",
     });
@@ -139,9 +183,55 @@ const followUnfollowUser = async (req, res, next) => {
 // @access  Private
 const changeUserAvatar = async (req, res, next) => {
   try {
-    res.json({
-      message: "Change profile photo endpoint is not implemented yet.",
-    });
+    if (!req.files.avatar) {
+      return next(new HttpError("No file uploaded.", 422));
+    }
+    const { avatar } = req.files;
+    if (avatar.size > 1000000) {
+      return next(
+        new HttpError("Profile photo is too big. Should be less than 1mb", 422)
+      );
+    }
+
+    let fileName = avatar.name;
+    let splitedFileName = fileName.split(".");
+    let newFileName =
+      splitedFileName[0] +
+      uuid() +
+      "." +
+      splitedFileName[splitedFileName.length - 1];
+    avatar.mv(
+      path.join(__dirname, "..", "uploads", newFileName),
+      async (err) => {
+        if (err) {
+          return next(new HttpError(err, 500));
+        }
+
+        // Upload to Cloudinary
+        const result = await cloudinary.uploader.upload(
+          path.join(__dirname, "..", "uploads", newFileName),
+          {
+            resource_type: "image",
+          }
+        );
+        if (!result || !result.secure_url) {
+          return next(new HttpError("Can't upload image to Cloudinary.", 422));
+        }
+
+        // Update user avatar URL in the database
+        const updatedUser = await UserModel.findByIdAndUpdate(
+          req.user.id,
+          {
+            profilePhoto: result.secure_url,
+          },
+          { new: true }
+        ).select("-password -__v");
+
+        // Remove the file from local storage
+        fs.unlinkSync(path.join(__dirname, "..", "uploads", newFileName));
+        res.status(200).json(updatedUser);
+      }
+    );
   } catch (error) {
     return next(new HttpError(error));
   }
