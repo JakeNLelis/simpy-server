@@ -1,4 +1,6 @@
 const HttpError = require("../models/errorModel");
+const UserModel = require("../models/userModel");
+const bcrypt = require("bcryptjs");
 
 // =================== Register User ===================
 // @desc    Register a new user
@@ -6,11 +8,36 @@ const HttpError = require("../models/errorModel");
 // @access  Public
 const registerUser = async (req, res, next) => {
   try {
-    res.json({
-      message: "User registration endpoint is not implemented yet.",
+    const { fullName, email, password, confirmPassword } = req.body;
+    if (!fullName || !email || !password || !confirmPassword) {
+      return next(new HttpError("All fields are required.", 422));
+    }
+    const lowerEmail = email.toLowerCase();
+    const emailExist = await UserModel.findOne({ email: lowerEmail });
+    if (emailExist) {
+      return next(new HttpError("Email already exists.", 422));
+    }
+
+    if (password !== confirmPassword) {
+      return next(new HttpError("Passwords do not match.", 422));
+    }
+
+    if (password.length < 8) {
+      return next(
+        new HttpError("Password must be at least 8 characters long.", 422)
+      );
+    }
+
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+    const newUser = await UserModel.create({
+      fullName,
+      email: lowerEmail,
+      password: hashedPassword,
     });
+    res.json(newUser).status(201);
   } catch (error) {
-    return next(new HttpError(error, 422));
+    return next(new HttpError(error));
   }
 };
 
@@ -24,7 +51,7 @@ const loginUser = async (req, res, next) => {
       message: "User login endpoint is not implemented yet.",
     });
   } catch (error) {
-    return next(new HttpError(error, 401));
+    return next(new HttpError(error));
   }
 };
 
@@ -38,7 +65,7 @@ const getUser = async (req, res, next) => {
       message: "User profile endpoint is not implemented yet.",
     });
   } catch (error) {
-    return next(new HttpError(error, 404));
+    return next(new HttpError(error));
   }
 };
 
@@ -52,7 +79,7 @@ const getUsers = async (req, res, next) => {
       message: "Users endpoint is not implemented yet.",
     });
   } catch (error) {
-    return next(new HttpError(error, 403));
+    return next(new HttpError(error));
   }
 };
 
@@ -66,7 +93,7 @@ const editUser = async (req, res, next) => {
       message: "User update endpoint is not implemented yet.",
     });
   } catch (error) {
-    return next(new HttpError(error, 422));
+    return next(new HttpError(error));
   }
 };
 
@@ -80,7 +107,7 @@ const followUnfollowUser = async (req, res, next) => {
       message: "Follow/Unfollow user endpoint is not implemented yet.",
     });
   } catch (error) {
-    return next(new HttpError(error, 404));
+    return next(new HttpError(error));
   }
 };
 
@@ -94,7 +121,7 @@ const changeUserAvatar = async (req, res, next) => {
       message: "Change profile photo endpoint is not implemented yet.",
     });
   } catch (error) {
-    return next(new HttpError(error, 422));
+    return next(new HttpError(error));
   }
 };
 
