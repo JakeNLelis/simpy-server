@@ -1,4 +1,4 @@
-const {
+import {
   registerUser,
   loginUser,
   getUser,
@@ -6,8 +6,10 @@ const {
   editUser,
   followUnfollowUser,
   changeUserAvatar,
-} = require("../controllers/userControllers");
-const router = require("express").Router();
+} from "../controllers/userControllers";
+
+import express from "express";
+const router = express.Router();
 
 // User Routes
 router.post("/users/register", registerUser);
@@ -18,4 +20,4 @@ router.patch("/users/:id", editUser);
 router.get("/users/:id/follow-unfollow", followUnfollowUser);
 router.post("/users/avatar", changeUserAvatar);
 
-module.exports = router;
+export default router;

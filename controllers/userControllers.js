@@ -1,7 +1,7 @@
-const HttpError = require("../models/errorModel");
-const UserModel = require("../models/userModel");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
+import { HttpError } from "../config/error";
+import UserModel from "../models/userModel";
+import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 
 // =================== Register User ===================
 // @desc    Register a new user
@@ -147,7 +147,7 @@ const changeUserAvatar = async (req, res, next) => {
   }
 };
 
-module.exports = {
+export {
   registerUser,
   loginUser,
   getUser,
