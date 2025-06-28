@@ -1,10 +1,8 @@
-import { HttpError } from "../config/error";
-import UserModel from "../models/userModel";
+import { HttpError } from "../config/error.js";
+import UserModel from "../models/userModel.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { v4 as uuid } from "uuid";
-import fs from "fs";
-import path from "path";
 import cloudinary from "../utils/cloudinary.js";
 
 // =================== Register User ===================
@@ -39,6 +37,9 @@ const registerUser = async (req, res, next) => {
       fullName,
       email: lowerEmail,
       password: hashedPassword,
+      profilePhoto: `https://ui-avatars.com/api/?name=${encodeURIComponent(
+        fullName
+      )}&background=random`,
     });
     res.status(201).json(newUser);
   } catch (error) {
@@ -183,7 +184,7 @@ const followUnfollowUser = async (req, res, next) => {
 // @access  Private
 const changeUserAvatar = async (req, res, next) => {
   try {
-    if (!req.files.avatar) {
+    if (!req.files || !req.files.avatar) {
       return next(new HttpError("No file uploaded.", 422));
     }
     const { avatar } = req.files;
@@ -193,47 +194,64 @@ const changeUserAvatar = async (req, res, next) => {
       );
     }
 
-    let fileName = avatar.name;
-    let splitedFileName = fileName.split(".");
-    let newFileName =
-      splitedFileName[0] +
-      uuid() +
-      "." +
-      splitedFileName[splitedFileName.length - 1];
-    avatar.mv(
-      path.join(__dirname, "..", "uploads", newFileName),
-      async (err) => {
-        if (err) {
-          return next(new HttpError(err, 500));
-        }
-
-        // Upload to Cloudinary
-        const result = await cloudinary.uploader.upload(
-          path.join(__dirname, "..", "uploads", newFileName),
-          {
-            resource_type: "image",
-          }
-        );
-        if (!result || !result.secure_url) {
-          return next(new HttpError("Can't upload image to Cloudinary.", 422));
-        }
-
-        // Update user avatar URL in the database
-        const updatedUser = await UserModel.findByIdAndUpdate(
-          req.user.id,
-          {
-            profilePhoto: result.secure_url,
-          },
-          { new: true }
-        ).select("-password -__v");
-
-        // Remove the file from local storage
-        fs.unlinkSync(path.join(__dirname, "..", "uploads", newFileName));
-        res.status(200).json(updatedUser);
+    try {
+      // Get current user to check existing avatar
+      const currentUser = await UserModel.findById(req.user.id);
+      if (!currentUser) {
+        return next(new HttpError("User not found.", 404));
       }
-    );
+
+      // Upload new avatar to Cloudinary
+      const result = await cloudinary.uploader.upload(
+        `data:${avatar.mimetype};base64,${avatar.data.toString("base64")}`,
+        {
+          resource_type: "image",
+          public_id: `avatars/${uuid()}`,
+          quality: "auto",
+          fetch_format: "auto",
+        }
+      );
+
+      if (!result || !result.secure_url) {
+        return next(new HttpError("Can't upload image to Cloudinary.", 422));
+      }
+
+      if (
+        currentUser.profilePhoto &&
+        currentUser.profilePhoto.includes("cloudinary.com") &&
+        !currentUser.profilePhoto.includes("ui-avatars.com")
+      ) {
+        try {
+          // Extract public_id from the Cloudinary URL
+          const urlParts = currentUser.profilePhoto.split("/");
+          const fileNameWithExt = urlParts[urlParts.length - 1];
+          const fileName = fileNameWithExt.split(".")[0];
+          const publicId = `avatars/${fileName}`;
+
+          await cloudinary.uploader.destroy(publicId);
+        } catch (deleteError) {
+          console.error("Error deleting old avatar:", deleteError);
+          // Don't fail the request if deletion fails
+        }
+      }
+
+      // Update user avatar URL in the database
+      const updatedUser = await UserModel.findByIdAndUpdate(
+        req.user.id,
+        {
+          profilePhoto: result.secure_url,
+        },
+        { new: true }
+      ).select("-password -__v");
+
+      res.status(200).json(updatedUser);
+    } catch (uploadError) {
+      return next(
+        new HttpError("Error uploading avatar: " + uploadError.message, 500)
+      );
+    }
   } catch (error) {
-    return next(new HttpError(error));
+    return next(new HttpError(error.message || "An error occurred", 500));
   }
 };
 

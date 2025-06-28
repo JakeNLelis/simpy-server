@@ -4,8 +4,6 @@ import UserModel from "../models/userModel.js";
 
 import { v4 as uuid } from "uuid";
 import cloudinary from "../utils/cloudinary.js";
-import fs from "fs";
-import path from "path";
 
 // =================== Create Post ===================
 // @desc    Create a Post
@@ -13,7 +11,61 @@ import path from "path";
 // @access  PRIVATE
 const createPost = async (req, res, next) => {
   try {
-    res.json("Create Post");
+    const { body } = req.body;
+    if (!body) {
+      return next(new HttpError("Fill in required fields", 422));
+    }
+    let newPost;
+    // if there is an image
+    if (req.files && req.files.image) {
+      const { image } = req.files;
+
+      if (image.size > 5000000) {
+        return next(
+          new HttpError("Image is too big, it should be less than 5mb", 422)
+        );
+      }
+
+      try {
+        // Upload directly to Cloudinary using buffer data
+        const result = await cloudinary.uploader.upload(
+          `data:${image.mimetype};base64,${image.data.toString("base64")}`,
+          {
+            resource_type: "image",
+            public_id: `posts/${uuid()}`, // Optional: organize uploads in folders
+            quality: "auto",
+            fetch_format: "auto",
+          }
+        );
+
+        if (!result.secure_url) {
+          return next(
+            new HttpError("Couldn't upload image to cloudinary", 400)
+          );
+        }
+
+        newPost = await PostModel.create({
+          creator: req.user.id,
+          body,
+          image: result.secure_url,
+        });
+
+        await UserModel.findByIdAndUpdate(newPost.creator, {
+          $push: { posts: newPost._id },
+        });
+      } catch (uploadError) {
+        return next(
+          new HttpError("Error uploading image: " + uploadError.message, 500)
+        );
+      }
+      // If there is no image present in a post
+    } else {
+      newPost = await PostModel.create({ creator: req.user.id, body });
+      await UserModel.findByIdAndUpdate(newPost.creator, {
+        $push: { posts: newPost._id },
+      });
+    }
+    res.status(200).json(newPost);
   } catch (error) {
     return next(new HttpError(error));
   }
