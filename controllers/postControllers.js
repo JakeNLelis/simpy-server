@@ -77,7 +77,12 @@ const createPost = async (req, res, next) => {
 // @access  PRIVATE
 const getPost = async (req, res, next) => {
   try {
-    res.json("Get a Post");
+    const { id } = req.params;
+    const post = await PostModel.findById(id);
+    if (!post) {
+      return next(new HttpError("Post doesn't exist", 404));
+    }
+    res.status(200).json(post);
   } catch (error) {
     return next(new HttpError(error));
   }
@@ -89,7 +94,8 @@ const getPost = async (req, res, next) => {
 // @access  PRIVATE
 const getPosts = async (req, res, next) => {
   try {
-    res.json("Get all Posts");
+    const posts = await PostModel.find();
+    res.status(200).json(posts);
   } catch (error) {
     return next(new HttpError(error));
   }
