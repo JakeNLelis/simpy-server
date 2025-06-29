@@ -21,6 +21,12 @@ import {
   getUserBookmarks,
 } from "../controllers/postControllers.js";
 
+import {
+  createComment,
+  getPostComments,
+  deleteComment,
+} from "../controllers/commentController.js";
+
 import { authMiddleware } from "../middleware/authMiddleware.js";
 import express from "express";
 const router = express.Router();
@@ -45,5 +51,10 @@ router.patch("/posts/:id", authMiddleware, updatePost);
 router.delete("/posts/:id", authMiddleware, deletePost);
 router.get("/posts/:id/like", authMiddleware, likeDislikePost);
 router.post("/posts/:id/bookmark", authMiddleware, createBookmark);
+
+// Comment Routes
+router.post("/comments/:postId", authMiddleware, createComment);
+router.get("/comments/:postId", authMiddleware, getPostComments);
+router.delete("/comments/:commentId", authMiddleware, deleteComment);
 
 export default router;

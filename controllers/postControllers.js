@@ -1,6 +1,7 @@
 import { HttpError } from "../config/error.js";
 import PostModel from "../models/postModel.js";
 import UserModel from "../models/userModel.js";
+import CommentModel from "../models/commentModel.js";
 
 import { v4 as uuid } from "uuid";
 import cloudinary from "../utils/cloudinary.js";
@@ -80,6 +81,11 @@ const getPost = async (req, res, next) => {
     const { id } = req.params;
     const post = await PostModel.findById(id)
       .populate("creator", "fullname email profilePhoto")
+      .populate({
+        path: "comments",
+        populate: { path: "creator", select: "fullname email profilePhoto" },
+        options: { sort: { createdAt: -1 } },
+      })
       .sort({ createdAt: -1 });
     if (!post) {
       return next(new HttpError("Post doesn't exist", 404));
@@ -99,7 +105,6 @@ const getPosts = async (req, res, next) => {
     const posts = await PostModel.find()
       .populate("creator", "fullname email profilePhoto")
       .sort({ createdAt: -1 });
-    //.populate({path: "comments", populate: { path: "creator", select: "fullname email profilePhoto" }, options: { sort: {createdAt: -1} }});
     res.status(200).json(posts);
   } catch (error) {
     return next(new HttpError(error));
@@ -164,6 +169,16 @@ const deletePost = async (req, res, next) => {
         console.error("Error deleting image from Cloudinary:", deleteError);
         // Don't fail the request if image deletion fails
       }
+    }
+
+    try {
+      const deletedComments = await CommentModel.deleteMany({ postId: id });
+      console.log(
+        `Deleted ${deletedComments.deletedCount} comments for post ${id}`
+      );
+    } catch (commentDeleteError) {
+      console.error("Error deleting comments:", commentDeleteError);
+      // Don't fail the request if comment deletion fails
     }
 
     await UserModel.findByIdAndUpdate(post.creator, {
