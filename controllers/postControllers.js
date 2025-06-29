@@ -137,7 +137,41 @@ const updatePost = async (req, res, next) => {
 // @access  PRIVATE
 const deletePost = async (req, res, next) => {
   try {
-    res.json("Delete Post");
+    const { id } = req.params;
+    const post = await PostModel.findById(id);
+
+    if (!post) {
+      return next(new HttpError("Post not found", 404));
+    }
+
+    if (post.creator.toString() !== req.user.id) {
+      return next(
+        new HttpError("You are not authorized to delete this post", 403)
+      );
+    }
+
+    // Delete image from Cloudinary if post has an image
+    if (post.image && post.image.includes("cloudinary.com")) {
+      try {
+        // Extract public_id from the Cloudinary URL
+        const urlParts = post.image.split("/");
+        const fileNameWithExt = urlParts[urlParts.length - 1];
+        const fileName = fileNameWithExt.split(".")[0];
+        const publicId = `posts/${fileName}`;
+
+        await cloudinary.uploader.destroy(publicId);
+      } catch (deleteError) {
+        console.error("Error deleting image from Cloudinary:", deleteError);
+        // Don't fail the request if image deletion fails
+      }
+    }
+
+    await UserModel.findByIdAndUpdate(post.creator, {
+      $pull: { posts: post._id },
+    });
+
+    const deletedPost = await PostModel.findByIdAndDelete(id);
+    res.status(200).json(deletedPost);
   } catch (error) {
     return next(new HttpError(error));
   }
