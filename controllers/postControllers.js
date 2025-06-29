@@ -183,7 +183,13 @@ const deletePost = async (req, res, next) => {
 // @access  PRIVATE
 const getFollowingPost = async (req, res, next) => {
   try {
-    res.json("Get Following Post");
+    const user = await UserModel.findById(req.user.id).select("following");
+
+    const posts = await PostModel.find({ creator: { $in: user.following } })
+      .populate("creator", "fullname email profilePhoto")
+      .sort({ createdAt: -1 });
+
+    res.status(200).json(posts);
   } catch (error) {
     return next(new HttpError(error));
   }
@@ -195,7 +201,16 @@ const getFollowingPost = async (req, res, next) => {
 // @access  PRIVATE
 const likeDislikePost = async (req, res, next) => {
   try {
-    res.json("Like or Dislike Post");
+    const { id } = req.params;
+    const post = await PostModel.findById(id);
+    const alreadyLiked = post.likes.includes(req.user.id);
+    if (alreadyLiked) {
+      post.likes.pull(req.user.id);
+    } else {
+      post.likes.push(req.user.id);
+    }
+    await post.save();
+    res.status(200).json(post);
   } catch (error) {
     return next(new HttpError(error));
   }
@@ -207,7 +222,11 @@ const likeDislikePost = async (req, res, next) => {
 // @access  PRIVATE
 const getUserPosts = async (req, res, next) => {
   try {
-    res.json("Get User Post");
+    const user = await UserModel.findById(req.params.id)
+      .select("-password -__v")
+      .populate({ path: "posts", options: { sort: { createdAt: -1 } } });
+
+    res.status(200).json(user);
   } catch (error) {
     return next(new HttpError(error));
   }
@@ -219,7 +238,16 @@ const getUserPosts = async (req, res, next) => {
 // @access  PRIVATE
 const createBookmark = async (req, res, next) => {
   try {
-    res.json("Create Bookmarks");
+    const { id } = req.params;
+    const user = await UserModel.findById(req.user.id).select("-password -__v");
+    const isBookmarked = user.bookmarks.includes(id);
+    if (isBookmarked) {
+      user.bookmarks.pull(id);
+    } else {
+      user.bookmarks.push(id);
+    }
+    await user.save();
+    res.status(200).json(user);
   } catch (error) {
     return next(new HttpError(error));
   }
@@ -231,7 +259,13 @@ const createBookmark = async (req, res, next) => {
 // @access  PRIVATE
 const getUserBookmarks = async (req, res, next) => {
   try {
-    res.json("Get Bookmarks");
+    const user = await UserModel.findById(req.user.id)
+      .select("-password -__v")
+      .populate({
+        path: "bookmarks",
+        populate: { path: "creator", select: "fullname email profilePhoto" },
+      });
+    res.status(200).json(user);
   } catch (error) {
     return next(new HttpError(error));
   }
