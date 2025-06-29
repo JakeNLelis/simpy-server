@@ -5,7 +5,7 @@
   "private": true,
   "author": "Nietzchan Jake G Lelis",
   "scripts": {
-    "build": "bun build ./index.js --outdir ./out",
+    "build": "bun-vercel ./index.js",
     "start": "bun run index.js",
     "dev": "bun --watch index.js"
   },
@@ -20,5 +20,8 @@
     "mongoose": "^8.16.1",
     "socket.io": "^4.8.1",
     "uuid": "^11.1.0"
+  },
+  "devDependencies": {
+    "bun-vercel": "^1.0.0-alpha.5"
   }
 }
