@@ -25,7 +25,13 @@ import {
   createComment,
   getPostComments,
   deleteComment,
-} from "../controllers/commentController.js";
+} from "../controllers/commentControllers.js";
+
+import {
+  createMessage,
+  getMessages,
+  getConversations,
+} from "../controllers/messageControllers.js";
 
 import { authMiddleware } from "../middleware/authMiddleware.js";
 import express from "express";
@@ -56,5 +62,10 @@ router.post("/posts/:id/bookmark", authMiddleware, createBookmark);
 router.post("/comments/:postId", authMiddleware, createComment);
 router.get("/comments/:postId", authMiddleware, getPostComments);
 router.delete("/comments/:commentId", authMiddleware, deleteComment);
+
+// Message Routes
+router.post("/messages/:receiverId", authMiddleware, createMessage);
+router.get("/messages/:receiverId", authMiddleware, getMessages);
+router.get("/conversations", authMiddleware, getConversations);
 
 export default router;
