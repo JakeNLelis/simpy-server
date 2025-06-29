@@ -78,7 +78,9 @@ const createPost = async (req, res, next) => {
 const getPost = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const post = await PostModel.findById(id);
+    const post = await PostModel.findById(id)
+      .populate("creator", "fullname email profilePhoto")
+      .sort({ createdAt: -1 });
     if (!post) {
       return next(new HttpError("Post doesn't exist", 404));
     }
@@ -94,7 +96,10 @@ const getPost = async (req, res, next) => {
 // @access  PRIVATE
 const getPosts = async (req, res, next) => {
   try {
-    const posts = await PostModel.find();
+    const posts = await PostModel.find()
+      .populate("creator", "fullname email profilePhoto")
+      .sort({ createdAt: -1 });
+    //.populate({path: "comments", populate: { path: "creator", select: "fullname email profilePhoto" }, options: { sort: {createdAt: -1} }});
     res.status(200).json(posts);
   } catch (error) {
     return next(new HttpError(error));
@@ -107,7 +112,20 @@ const getPosts = async (req, res, next) => {
 // @access  PRIVATE
 const updatePost = async (req, res, next) => {
   try {
-    res.json("Update a Post");
+    const { id } = req.params;
+    const { body } = req.body;
+    const post = await PostModel.findById(id);
+    if (post.creator.toString() !== req.user.id) {
+      return next(
+        new HttpError("You are not authorized to update this post", 403)
+      );
+    }
+    const updatedPost = await PostModel.findByIdAndUpdate(
+      id,
+      { body },
+      { new: true }
+    );
+    res.status(200).json(updatedPost);
   } catch (error) {
     return next(new HttpError(error));
   }
