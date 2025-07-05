@@ -75,7 +75,14 @@ const loginUser = async (req, res, next) => {
         expiresIn: "7d",
       }
     );
-    res.status(200).json({ token, id: user?._id, name: user?.fullName });
+    res
+      .status(200)
+      .json({
+        token,
+        id: user?._id,
+        name: user?.fullName,
+        profilePhoto: user?.profilePhoto,
+      });
   } catch (error) {
     return next(new HttpError(error));
   }
