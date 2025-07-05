@@ -80,10 +80,10 @@ const getPost = async (req, res, next) => {
   try {
     const { id } = req.params;
     const post = await PostModel.findById(id)
-      .populate("creator", "fullname email profilePhoto")
+      .populate("creator", "fullName email profilePhoto")
       .populate({
         path: "comments",
-        populate: { path: "creator", select: "fullname email profilePhoto" },
+        populate: { path: "creator", select: "fullName email profilePhoto" },
         options: { sort: { createdAt: -1 } },
       })
       .sort({ createdAt: -1 });
@@ -103,7 +103,7 @@ const getPost = async (req, res, next) => {
 const getPosts = async (req, res, next) => {
   try {
     const posts = await PostModel.find()
-      .populate("creator", "fullname email profilePhoto")
+      .populate("creator", "fullName email profilePhoto")
       .sort({ createdAt: -1 });
     res.status(200).json(posts);
   } catch (error) {
@@ -201,7 +201,7 @@ const getFollowingPost = async (req, res, next) => {
     const user = await UserModel.findById(req.user.id).select("following");
 
     const posts = await PostModel.find({ creator: { $in: user.following } })
-      .populate("creator", "fullname email profilePhoto")
+      .populate("creator", "fullName email profilePhoto")
       .sort({ createdAt: -1 });
 
     res.status(200).json(posts);
@@ -278,7 +278,7 @@ const getUserBookmarks = async (req, res, next) => {
       .select("-password -__v")
       .populate({
         path: "bookmarks",
-        populate: { path: "creator", select: "fullname email profilePhoto" },
+        populate: { path: "creator", select: "fullName email profilePhoto" },
       });
     res.status(200).json(user);
   } catch (error) {
